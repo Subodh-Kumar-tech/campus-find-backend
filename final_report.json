@@ -1,0 +1,49 @@
+{
+  "test": {
+    "db": "test",
+    "foundUser": false,
+    "passwordMatch": false,
+    "items": [
+      {
+        "title": "key",
+        "category": "lost"
+      },
+      {
+        "title": "Racquet",
+        "category": "found"
+      },
+      {
+        "title": "Badminton rackets ",
+        "category": "lost"
+      },
+      {
+        "title": "Airpods ",
+        "category": "lost"
+      },
+      {
+        "title": "mobile",
+        "category": "found"
+      }
+    ]
+  },
+  "lostfound": {
+    "db": "lostfound",
+    "foundUser": true,
+    "passwordMatch": true,
+    "items": [
+      {
+        "title": "Black wallet",
+        "category": "lost"
+      },
+      {
+        "title": "watch",
+        "category": "found"
+      },
+      {
+        "title": "watch",
+        "category": "found"
+      }
+    ],
+    "userId": "696d1e89bdaeed0d7c935d69"
+  }
+}

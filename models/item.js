@@ -4,6 +4,7 @@ const claimSchema = new mongoose.Schema({
   claimantName: String,
   claimantContact: String,
   proofAnswer: String,
+  proofImage: String, // 🔥 Added proof image field
   status: {
     type: String,
     enum: ["pending", "approved", "rejected"],
@@ -29,6 +30,15 @@ const itemSchema = new mongoose.Schema({
 
   // 🔥 CLAIMS
   claims: [claimSchema],
+
+  postedBy: {
+    type: String, // Store email for simplicity in this project
+    required: false,
+  },
+  isClaimed: {
+    type: Boolean,
+    default: false,
+  },
 
   createdAt: {
     type: Date,

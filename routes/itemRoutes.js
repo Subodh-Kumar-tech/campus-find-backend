@@ -12,6 +12,9 @@ router.get("/test", (req, res) => {
 // 🔥 CREATE ITEM
 router.post("/", upload.single("itemImage"), itemController.createItem);
 
+// 🔥 BATCH MATCHING (RETROACTIVE)
+router.post("/batch-match", itemController.runBatchMatching);
+
 // 🔥 GET ALL ITEMS
 router.get("/", itemController.getItems);
 
@@ -19,6 +22,12 @@ router.get("/", itemController.getItems);
 router.get("/:id", itemController.getItemById);
 
 // 🔥 CLAIM ITEM
-router.post("/:id/claim", itemController.claimItem);
+router.post("/:id/claim", upload.single("proofImage"), itemController.claimItem);
+
+// 🔥 USER STATS
+router.get("/stats/:email", itemController.getUserStats);
+
+// 🔥 USER ACTIVITY
+router.get("/activity/:email", itemController.getUserActivity);
 
 module.exports = router;

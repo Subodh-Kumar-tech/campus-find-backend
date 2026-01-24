@@ -28,6 +28,8 @@ app.get("/", (req, res) => {
 // API routes
 app.use("/api/items", require("./routes/itemRoutes"));
 app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/notifications", require("./routes/notificationRoutes"));
+app.use("/api/admin", require("./routes/adminRoutes"));
 
 
 // Start server
