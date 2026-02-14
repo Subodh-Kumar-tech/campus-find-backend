@@ -111,7 +111,7 @@ router.post("/signup", async (req, res) => {
 /* =========================
    LOGIN (EXISTING USER)
 ========================= */
-router.post("/login", async (req, res) => {
+const loginHandler = async (req, res) => {
   console.log("🔥 LOGIN ATTEMPT 🔥", req.body.email);
   try {
     const { email, password } = req.body;
@@ -181,7 +181,11 @@ router.post("/login", async (req, res) => {
     console.error(error);
     res.status(500).json({ message: "Server error" });
   }
-});
+};
+
+router.post("/login", loginHandler);
+router.post("/signin", loginHandler); // 🔥 Legacy alias for deployed frontend compatibility
+
 
 /* =========================
    UPDATE PROFILE PHOTO

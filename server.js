@@ -1,5 +1,5 @@
 
-console.log("🔥 THIS SERVER.JS IS RUNNING 🔥");
+console.log("Starting Campus Connect Backend Server...");
 // Trigger redeploy: 2026-02-14 15:42
 
 const express = require("express");

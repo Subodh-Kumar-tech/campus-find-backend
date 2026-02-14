@@ -1,4 +1,0 @@
-lostfound
-test
-admin
-local

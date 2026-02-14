@@ -52,10 +52,15 @@ router.get("/users", async (req, res) => {
 ========================= */
 router.delete("/users/:id", async (req, res) => {
     try {
-        const item = await Item.findByIdAndDelete(req.params.id);
-        if (item) {
+        console.log(`Attempting to delete user with ID: ${req.params.id}`);
+        const user = await User.findByIdAndDelete(req.params.id);
+        if (user) {
+            console.log(`User deleted: ${user.email}`);
             const adminName = req.headers['x-admin-name'] || "Admin";
-            await logAction(null, adminName, "DELETE_ITEM", req.params.id, `Deleted item ${item.title}`);
+            await logAction(null, adminName, "DELETE_USER", req.params.id, `Deleted user ${user.fullName}`);
+        } else {
+            console.log(`User not found with ID: ${req.params.id}`);
+            return res.status(404).json({ message: "User not found" });
         }
         res.json({ message: "User deleted successfully" });
     } catch (error) {

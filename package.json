@@ -1,7 +1,7 @@
 {
-  "name": "backend",
+  "name": "campus-connect-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Express.js API for Campus Connect Lost & Found System",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
