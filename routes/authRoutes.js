@@ -174,6 +174,7 @@ router.post("/login", async (req, res) => {
         department: user.department,
         collegeName: user.collegeName,
         profilePhoto: user.profilePhoto,
+        role: "user", // 🔥 Explicitly set role for regular users
       },
     });
   } catch (error) {
