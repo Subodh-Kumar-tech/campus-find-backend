@@ -75,10 +75,12 @@ const checkAndNotifyMatches = async (newItem) => {
 // 🔥 CREATE ITEM
 exports.createItem = async (req, res) => {
   try {
+    console.log("Creating item with body:", req.body);
     const newItem = new Item({
       title: req.body.title,
       description: req.body.description,
       category: req.body.category,
+      itemCategory: req.body.itemCategory || "Others",
       location: req.body.location,
       contactInfo: req.body.contactInfo,
       itemImage: req.file ? req.file.path : "",
@@ -86,6 +88,7 @@ exports.createItem = async (req, res) => {
     });
 
     await newItem.save();
+    console.log("Saved item:", newItem);
 
     // Trigger Smart Matching
     await checkAndNotifyMatches(newItem);

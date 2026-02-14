@@ -111,6 +111,33 @@ router.get("/activity", async (req, res) => {
     }
 });
 
+/* =========================
+   GET REPORT DATA (Items Export)
+========================= */
+router.get("/report/items", async (req, res) => {
+    try {
+        const items = await Item.find()
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // Format data for easier CSV/Preview consumption
+        const reportData = items.map(item => ({
+            _id: item._id,
+            title: item.title,
+            category: item.category,
+            itemCategory: item.itemCategory || "Others",
+            location: item.location,
+            reporter: item.postedBy || "Anonymous",
+            status: item.isClaimed ? "Resolved" : "Open",
+            date: item.createdAt
+        }));
+
+        res.json(reportData);
+    } catch (error) {
+        res.status(500).json({ message: "Error generating report data" });
+    }
+});
+
 
 
 /* =========================

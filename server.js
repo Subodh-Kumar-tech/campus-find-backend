@@ -1,6 +1,5 @@
-
-console.log("Starting Campus Connect Backend Server...");
-// Trigger redeploy: 2026-02-14 15:42
+console.log("Starting Campus Connect Backend Server... VERSION 1.1 (Categories)");
+// Trigger redeploy: 2026-02-14 21:00
 
 const express = require("express");
 const cors = require("cors");

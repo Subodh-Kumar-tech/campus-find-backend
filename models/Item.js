@@ -24,6 +24,11 @@ const itemSchema = new mongoose.Schema({
     enum: ["lost", "found"],
     required: true,
   },
+  itemCategory: {
+    type: String,
+    enum: ["Electronics", "Clothing", "Books & Notes", "Keys & IDs", "Others"],
+    default: "Others",
+  },
   location: String,
   contactInfo: String,
   itemImage: String,
