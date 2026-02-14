@@ -112,6 +112,7 @@ router.post("/signup", async (req, res) => {
    LOGIN (EXISTING USER)
 ========================= */
 router.post("/login", async (req, res) => {
+  console.log("🔥 LOGIN ATTEMPT 🔥", req.body.email);
   try {
     const { email, password } = req.body;
 
