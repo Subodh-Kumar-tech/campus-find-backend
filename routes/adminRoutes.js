@@ -129,7 +129,7 @@ router.get("/report/items", async (req, res) => {
             location: item.location,
             reporter: item.postedBy || "Anonymous",
             status: item.isClaimed ? "Resolved" : "Open",
-            date: item.createdAt
+            date: item.date || item.createdAt
         }));
 
         res.json(reportData);
