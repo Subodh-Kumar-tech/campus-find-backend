@@ -2,6 +2,18 @@ const Item = require("../models/Item");
 const sendEmail = require("../utils/sendEmail");
 
 const Notification = require("../models/Notification");
+const User = require("../models/User");
+
+// 🔥 GET SUCCESS STORIES (Resolved Items)
+exports.successStories = async (req, res) => {
+  console.log("DEBUG: Hit successStories endpoint");
+  try {
+    const items = await Item.find({ isClaimed: true }).sort({ updatedAt: -1 });
+    res.json(items);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 // 🧠 HELPER: Check and Notify Matches
 const checkAndNotifyMatches = async (newItem) => {
@@ -22,50 +34,68 @@ const checkAndNotifyMatches = async (newItem) => {
   for (const match of similarItems) {
     if (match.postedBy && match.postedBy.includes("@") && match.postedBy !== newItem.postedBy) {
 
-      // Check for existing notification to avoid duplicates
-      const existingNotification = await Notification.findOne({
+      // --- 1. Notify the EXISTING user (match.postedBy) ---
+      const hasExistingNotif = await Notification.findOne({
         userId: match.postedBy,
         relatedItemId: newItem._id,
         type: "match_found"
       });
 
-      if (existingNotification) continue;
+      if (!hasExistingNotif) {
+        const msgForExisting = match.category === "lost"
+          ? `Potential Match Found: Someone found an item that might be your lost "${match.title}"!`
+          : `Potential Match Found: Someone already lost an item similar to the one you found: "${newItem.title}"`;
 
-      // 1. Create DB Notification
-      const notificationMessage = newItem.category === "lost"
-        ? `Someone posted a LOST item similar to your found item: "${newItem.title}"`
-        : `Someone found an item that might match your lost item: "${newItem.title}"`;
+        await Notification.create({
+          userId: match.postedBy,
+          message: msgForExisting,
+          type: "match_found",
+          relatedItemId: newItem._id
+        });
 
-      await Notification.create({
-        userId: match.postedBy,
-        message: notificationMessage,
-        type: "match_found",
-        relatedItemId: newItem._id
-      });
+        // Email to existing user
+        const recipientExisting = await User.findOne({ email: match.postedBy });
+        const nameExisting = recipientExisting?.fullName?.split(' ')[0] || "Member";
 
-      notificationsCreated++;
-
-      // 2. Send Email Notification
-      const emailSubject = "Potential Match Found!";
-      const emailBody = `
-            Hello,
-            
-            ${notificationMessage}
-            
-            Please check the dashboard to view details.
-            
-            Regards,
-            Campus Find Team
-            `;
-
-      try {
         await sendEmail({
           email: match.postedBy,
-          subject: emailSubject,
-          message: emailBody
+          subject: "Potential Match Found!",
+          message: `Hello ${nameExisting},\n\n${msgForExisting}\n\nPlease check your dashboard for details.\n\nRegards,\nCampus Connect Team`
+        }).catch(err => console.error("Email failed for existing reporter", err));
+
+        notificationsCreated++;
+      }
+
+      // --- 2. Notify the NEW user (newItem.postedBy) ---
+      const hasNewNotif = await Notification.findOne({
+        userId: newItem.postedBy,
+        relatedItemId: match._id,
+        type: "match_found"
+      });
+
+      if (!hasNewNotif) {
+        const msgForNew = newItem.category === "lost"
+          ? `Potential Match Found: Someone already found an item that might be your lost "${newItem.title}"!`
+          : `Potential Match Found: Someone already lost an item similar to what you just found: "${match.title}"`;
+
+        await Notification.create({
+          userId: newItem.postedBy,
+          message: msgForNew,
+          type: "match_found",
+          relatedItemId: match._id
         });
-      } catch (err) {
-        console.error("Failed to send match email", err);
+
+        // Email to new user
+        const recipientNew = await User.findOne({ email: newItem.postedBy });
+        const nameNew = recipientNew?.fullName?.split(' ')[0] || "Member";
+
+        await sendEmail({
+          email: newItem.postedBy,
+          subject: "Potential Match Found!",
+          message: `Hello ${nameNew},\n\n${msgForNew}\n\nPlease check your dashboard for details.\n\nRegards,\nCampus Connect Team`
+        }).catch(err => console.error("Email failed for new reporter", err));
+
+        notificationsCreated++;
       }
     }
   }
@@ -83,6 +113,7 @@ exports.createItem = async (req, res) => {
       itemCategory: req.body.itemCategory || "Others",
       location: req.body.location,
       contactInfo: req.body.contactInfo,
+      date: req.body.date,
       itemImage: req.file ? req.file.path : "",
       postedBy: req.body.postedBy || "",
     });
@@ -90,8 +121,8 @@ exports.createItem = async (req, res) => {
     await newItem.save();
     console.log("Saved item:", newItem);
 
-    // Trigger Smart Matching
-    await checkAndNotifyMatches(newItem);
+    // Trigger Smart Matching (Background - Fire & Forget)
+    checkAndNotifyMatches(newItem).catch(err => console.error("Background matching error:", err));
 
     res.status(201).json(newItem);
   } catch (error) {
@@ -122,10 +153,10 @@ exports.runBatchMatching = async (req, res) => {
   }
 };
 
-// 🔥 GET ALL ITEMS
+// 🔥 GET ALL ITEMS (Open only)
 exports.getItems = async (req, res) => {
   try {
-    const items = await Item.find().sort({ createdAt: -1 });
+    const items = await Item.find({ isClaimed: false }).sort({ createdAt: -1 });
     res.json(items);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -165,45 +196,58 @@ exports.claimItem = async (req, res) => {
 
     await item.save();
 
-    // 📧 SEND EMAIL NOTIFICATION
+    // 📧 SEND EMAIL NOTIFICATION (Background - Fire & Forget)
     if (item.postedBy && item.postedBy.includes("@")) {
-      const isLostItem = item.category === "lost"; // Reporter lost it, someone found it
-      // If isLostItem is true: User found your lost item
-      // If isLostItem is false (found): Owner claim this item
+      (async () => {
+        try {
+          const isLostItem = item.category === "lost";
+          const recipient = await User.findOne({ email: item.postedBy });
+          const firstName = recipient?.fullName?.split(' ')[0] || "Member";
 
-      const subject = isLostItem
-        ? `User found your lost item: ${item.title}`
-        : `Owner claim this item: ${item.title}`;
+          const subject = isLostItem
+            ? `Found Alert: Someone might have found your item: ${item.title}`
+            : `Claim Alert: A member has claimed your item: ${item.title}`;
 
-      const message = `
-        Hello,
+          const message = `
+Hello ${firstName},
 
-        A new claim has been submitted for your item: "${item.title}".
+A new claim or match has been submitted for your item: "${item.title}".
 
-        Claimant Details:
-        Name: ${claimantName}
-        Contact: ${claimantContact}
-        
-        Proof/Description provided:
-        ${proofAnswer}
+Claimant Details:
+Name: ${claimantName}
+Contact: ${claimantContact}
 
-        Please log in to your dashboard to view full details and approve/reject this claim.
+Proof/Description provided:
+${proofAnswer}
 
-        Regards,
-        Campus Find Team
-        `;
+Please log in to your dashboard to view full details and manage this request.
 
-      try {
-        await sendEmail({
-          email: item.postedBy,
-          subject: subject,
-          message: message
-        });
-        console.log("Email sent successfully to", item.postedBy);
-      } catch (emailError) {
-        console.error("Error sending email:", emailError);
-        // Don't fail the request if email fails, just log it
-      }
+Regards,
+Campus Connect Team
+`;
+
+          await sendEmail({
+            email: item.postedBy,
+            subject: subject,
+            message: message
+          });
+          console.log("Email sent successfully to", item.postedBy);
+
+          // 🔔 DB NOTIFICATION
+          await Notification.create({
+            userId: item.postedBy,
+            message: isLostItem
+              ? `Update: Someone might have found your lost item: "${item.title}"`
+              : `Update: A member has claimed your found item: "${item.title}"`,
+            type: "claim_update",
+            relatedItemId: item._id
+          });
+          console.log("Dashboard notification created for", item.postedBy);
+
+        } catch (bgError) {
+          console.error("Background notification error:", bgError);
+        }
+      })();
     }
 
     res.json({ message: "Claim submitted successfully" });
@@ -211,6 +255,22 @@ exports.claimItem = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// 🔥 MARK AS RESOLVED
+exports.resolveItem = async (req, res) => {
+  try {
+    const item = await Item.findByIdAndUpdate(
+      req.params.id,
+      { isClaimed: true },
+      { new: true }
+    );
+    if (!item) return res.status(404).json({ message: "Item not found" });
+    res.json({ message: "Item marked as resolved", item });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 
 // 🔥 GET USER STATS
 exports.getUserStats = async (req, res) => {

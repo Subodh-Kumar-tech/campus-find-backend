@@ -6,18 +6,34 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    userType: {
+      type: String,
+      enum: ["campus", "organization"],
+      default: "campus",
+    },
+    // Campus specific fields
     registrationNo: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true, // Allows null/missing values for organization users
     },
     department: {
       type: String,
-      required: true,
     },
     collegeName: {
       type: String,
-      required: true,
+    },
+    // Organization specific fields
+    employeeId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    designation: {
+      type: String,
+    },
+    companyName: {
+      type: String,
     },
     email: {
       type: String,

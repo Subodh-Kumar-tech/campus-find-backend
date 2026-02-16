@@ -56,47 +56,75 @@ router.put("/update-details", async (req, res) => {
 router.post("/signup", async (req, res) => {
   try {
     const {
+      userType, // 'campus' or 'organization'
       fullName,
+      email,
+      password,
+      // Campus specific
       registrationNo,
       department,
       collegeName,
-      email,
-      password,
+      // Organization specific
+      employeeId,
+      designation,
+      companyName,
     } = req.body;
 
-    // Check required fields
-    if (
-      !fullName ||
-      !registrationNo ||
-      !department ||
-      !collegeName ||
-      !email ||
-      !password
-    ) {
-      return res.status(400).json({ message: "All fields are required" });
+    // Check common required fields
+    if (!fullName || !email || !password || !userType) {
+      return res.status(400).json({ message: "Full name, email, password and user type are required" });
+    }
+
+    // Check type-specific required fields
+    if (userType === "campus") {
+      if (!registrationNo || !department || !collegeName) {
+        return res.status(400).json({ message: "Campus users require registration number, department, and college name" });
+      }
+    } else if (userType === "organization") {
+      if (!employeeId || !designation || !companyName) {
+        return res.status(400).json({ message: "Organization users require employee ID, designation, and company name" });
+      }
+    } else {
+      return res.status(400).json({ message: "Invalid user type" });
     }
 
     // Check if user exists
-    const existingUser = await User.findOne({
-      $or: [{ email }, { registrationNo }],
-    });
+    const query = { $or: [{ email }] };
+    if (userType === "campus") {
+      query.$or.push({ registrationNo });
+    } else {
+      query.$or.push({ employeeId });
+    }
+
+    const existingUser = await User.findOne(query);
 
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ message: "User with this email or ID already exists" });
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
-    const user = await User.create({
+    // Create user object
+    const newUser = {
+      userType,
       fullName,
-      registrationNo,
-      department,
-      collegeName,
       email,
       password: hashedPassword,
-    });
+    };
+
+    if (userType === "campus") {
+      newUser.registrationNo = registrationNo;
+      newUser.department = department;
+      newUser.collegeName = collegeName;
+    } else {
+      newUser.employeeId = employeeId;
+      newUser.designation = designation;
+      newUser.companyName = companyName;
+    }
+
+    // Create user
+    const user = await User.create(newUser);
 
     res.status(201).json({
       message: "User registered successfully",
@@ -148,12 +176,12 @@ const loginHandler = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
     // Generate token
@@ -168,13 +196,17 @@ const loginHandler = async (req, res) => {
       token,
       user: {
         id: user._id,
+        userType: user.userType,
         fullName: user.fullName,
         email: user.email,
         registrationNo: user.registrationNo,
         department: user.department,
         collegeName: user.collegeName,
+        employeeId: user.employeeId,
+        designation: user.designation,
+        companyName: user.companyName,
         profilePhoto: user.profilePhoto,
-        role: "user", // 🔥 Explicitly set role for regular users
+        role: "user",
       },
     });
   } catch (error) {
@@ -209,6 +241,9 @@ router.post("/update-profile", upload.single("profilePhoto"), async (req, res) =
     if (req.body.registrationNo) user.registrationNo = req.body.registrationNo;
     if (req.body.department) user.department = req.body.department;
     if (req.body.collegeName) user.collegeName = req.body.collegeName;
+    if (req.body.employeeId) user.employeeId = req.body.employeeId;
+    if (req.body.designation) user.designation = req.body.designation;
+    if (req.body.companyName) user.companyName = req.body.companyName;
 
     await user.save();
 
@@ -216,11 +251,15 @@ router.post("/update-profile", upload.single("profilePhoto"), async (req, res) =
       message: "Profile updated successfully",
       user: {
         id: user._id,
+        userType: user.userType,
         fullName: user.fullName,
         email: user.email,
         registrationNo: user.registrationNo,
         department: user.department,
         collegeName: user.collegeName,
+        employeeId: user.employeeId,
+        designation: user.designation,
+        companyName: user.companyName,
         profilePhoto: user.profilePhoto,
       },
     });
@@ -235,7 +274,7 @@ router.post("/update-profile", upload.single("profilePhoto"), async (req, res) =
 ========================= */
 router.put("/update-details", async (req, res) => {
   try {
-    const { email, fullName, registrationNo, department, collegeName } = req.body;
+    const { email, fullName, registrationNo, department, collegeName, employeeId, designation, companyName } = req.body;
 
     if (!email) {
       return res.status(400).json({ message: "Email is required" });
@@ -251,6 +290,9 @@ router.put("/update-details", async (req, res) => {
     if (registrationNo) user.registrationNo = registrationNo;
     if (department) user.department = department;
     if (collegeName) user.collegeName = collegeName;
+    if (employeeId) user.employeeId = employeeId;
+    if (designation) user.designation = designation;
+    if (companyName) user.companyName = companyName;
 
     await user.save();
 
@@ -258,11 +300,15 @@ router.put("/update-details", async (req, res) => {
       message: "Profile details updated successfully",
       user: {
         id: user._id,
+        userType: user.userType,
         fullName: user.fullName,
         email: user.email,
         registrationNo: user.registrationNo,
         department: user.department,
         collegeName: user.collegeName,
+        employeeId: user.employeeId,
+        designation: user.designation,
+        companyName: user.companyName,
         profilePhoto: user.profilePhoto, // Keep existing photo
       },
     });
